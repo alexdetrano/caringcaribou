@@ -1074,11 +1074,16 @@ def dump_dids(arb_id_request, arb_id_response, timeout,
             for identifier in range(min_did, max_did + 1):
                 response = uds.read_data_by_identifier(identifier=[identifier])
 
+
                 # Only keep positive responses
                 if response and Iso14229_1.is_positive_response(response):
+                    # sometimes there are other modules reading DIDs at the same time
+                    # try to filter out extranous DID reads by comparing the value
+                    if identifier != int(list_to_hex_str(response[1:3]), 16):
+                        continue
                     responses.append((identifier, response))
                     if print_results:
-                        print('0x{:04x}'.format(identifier), list_to_hex_str(response))
+                        print('0x{:04x}'.format(identifier), list_to_hex_str(response[3:]))
             if print_results:
                 print("\nDone!")
             return responses
