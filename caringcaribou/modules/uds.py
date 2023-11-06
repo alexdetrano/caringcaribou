@@ -1260,60 +1260,72 @@ def dump_dids(arb_id_request, arb_id_response, timeout, reporting,
              empty list if no responses
     :rtype [(int, [int])] or []
     """
-    # Sanity checks
-    if isinstance(timeout, float) and timeout < 0.0:
-        raise ValueError("Timeout value ({0}) cannot be negative"
-                         .format(timeout))
 
-    if max_did < min_did:
-        raise ValueError("max_did must not be smaller than min_did -"
-                         " got min:0x{0:x}, max:0x{1:x}".format(min_did, max_did))
+    try:
+        # Sanity checks
+        if isinstance(timeout, float) and timeout < 0.0:
+            raise ValueError("Timeout value ({0}) cannot be negative"
+                            .format(timeout))
 
-    if reporting == 1:
-        global REPORT
-        REPORT = 1
+        if max_did < min_did:
+            raise ValueError("max_did must not be smaller than min_did -"
+                            " got min:0x{0:x}, max:0x{1:x}".format(min_did, max_did))
 
-    responses = []
-    with IsoTp(arb_id_request=arb_id_request,
-               arb_id_response=arb_id_response) as tp:
-        
-        IsoTp.NP[0] = NP[0]
-        IsoTp.PADDING[0] = PADDING[0]
+        if reporting == 1:
+            global REPORT
+            REPORT = 1
 
-        # Setup filter for incoming messages
-        tp.set_filter_single_arbitration_id(arb_id_response)
-        with Iso14229_1(tp) as uds:
-            # Set timeout
-            if timeout is not None:
-                uds.P3_CLIENT = timeout
+        responses = []
+        with IsoTp(arb_id_request=arb_id_request,
+                arb_id_response=arb_id_response) as tp:
+            
+            IsoTp.NP[0] = NP[0]
+            IsoTp.PADDING[0] = PADDING[0]
 
-            if print_results:
-                print('Dumping DIDs in range 0x{:04x}-0x{:04x}\n'.format(
-                    min_did, max_did))
-                report_print('Identified DIDs:')
-                report_print('DID    Value (hex)')
-            for identifier in range(min_did, max_did + 1):
-                print(f'0x{identifier:04x}', end='\r', file=stderr)
-                response = uds.read_data_by_identifier(identifier=[identifier])
+            # Setup filter for incoming messages
+            tp.set_filter_single_arbitration_id(arb_id_response)
+            with Iso14229_1(tp) as uds:
+                # Set timeout
+                if timeout is not None:
+                    uds.P3_CLIENT = timeout
 
-                # Only keep positive responses
-                if response and Iso14229_1.is_positive_response(response):
-                    # sometimes there are other modules reading DIDs at the same time
-                    # try to filter out extranous DID reads by comparing the value
-                    if identifier != int(list_to_hex_str(response[1:3]), 16):
-                        continue
-                    
-                    responses.append((identifier, response))
-                    if print_results:
-                        did = '0x{:04x}'.format(identifier), list_to_hex_str(response[3:])
-                        report_print(str(did))
+                if print_results:
+                    print('Dumping DIDs in range 0x{:04x}-0x{:04x}\n'.format(
+                        min_did, max_did))
+                    report_print('Identified DIDs:')
+                    report_print('DID    Value (hex)')
+                for identifier in range(min_did, max_did + 1):
+                    print(f'Current DID: 0x{identifier:04x}', end='\r', file=stderr)
+                    response = uds.read_data_by_identifier(identifier=[identifier])
 
-            if print_results:
-                print("\nDone!")
-                print("\033[K", file=stderr) # clear line
-                print("Done!")
-                report_print("\n")
-            return responses
+                    # Only keep positive responses
+                    if response and Iso14229_1.is_positive_response(response):
+                        # sometimes there are other modules reading DIDs at the same time
+                        # try to filter out extranous DID reads by comparing the value
+                        if identifier != int(list_to_hex_str(response[1:3]), 16):
+                            continue
+                        
+                        responses.append((identifier, response))
+                        if print_results:
+                            did = '0x{:04x}'.format(identifier), list_to_hex_str(response[3:])
+                            report_print(str(did))
+
+                if print_results:
+                    print("\nDone!")
+                    print("\033[K", file=stderr) # clear line
+                    print("Done!")
+                    report_print("\n")
+                return responses
+            
+    except KeyboardInterrupt:
+        if print_results:
+            print(responses)
+            print("\033[K", file=stderr) # clear line
+        print("Interrupted by user.\n")
+        return responses
+    except ValueError as e:
+        print(e)
+        return
 
 
 def __dump_mem_wrapper(args):
@@ -1467,77 +1479,87 @@ def write_dids(diagnostic, arb_id_request, arb_id_response, timeout, reporting,
              empty list if no responses
     :rtype [(int, [int])] or []
     """
+    try:
+        # Sanity checks
+        if isinstance(timeout, float) and timeout < 0.0:
+            raise ValueError("Timeout value ({0}) cannot be negative"
+                            .format(timeout))
 
-    # Sanity checks
-    if isinstance(timeout, float) and timeout < 0.0:
-        raise ValueError("Timeout value ({0}) cannot be negative"
-                         .format(timeout))
+        if max_did < min_did:
+            raise ValueError("max_did must not be smaller than min_did -"
+                            " got min:0x{0:x}, max:0x{1:x}".format(min_did, max_did))
+        
+        if reporting == 1:
+            global REPORT
+            REPORT = 1
 
-    if max_did < min_did:
-        raise ValueError("max_did must not be smaller than min_did -"
-                         " got min:0x{0:x}, max:0x{1:x}".format(min_did, max_did))
-    
-    if reporting == 1:
-        global REPORT
-        REPORT = 1
+        response_diag = extended_session(arb_id_request, arb_id_response, diagnostic)
+        if not Iso14229_1.is_positive_response(response_diag):
+            raise ValueError("Supplied Diagnostic Session Control subservice results in Negative Response")
 
-    response_diag = extended_session(arb_id_request, arb_id_response, diagnostic)
-    if not Iso14229_1.is_positive_response(response_diag):
-        raise ValueError("Supplied Diagnostic Session Control subservice results in Negative Response")
+        responses = []
+        with IsoTp(arb_id_request=arb_id_request,
+                arb_id_response=arb_id_response) as tp:
+            # Setup filter for incoming messages
 
-    responses = []
-    with IsoTp(arb_id_request=arb_id_request,
-               arb_id_response=arb_id_response) as tp:
-        # Setup filter for incoming messages
+            IsoTp.NP[0] = NP[0]
+            IsoTp.PADDING[0] = PADDING[0]
 
-        IsoTp.NP[0] = NP[0]
-        IsoTp.PADDING[0] = PADDING[0]
+            tp.set_filter_single_arbitration_id(arb_id_response)
+            with Iso14229_1(tp) as uds:
+                # Set timeout
+                if timeout is not None:
+                    uds.P3_CLIENT = timeout
 
-        tp.set_filter_single_arbitration_id(arb_id_response)
-        with Iso14229_1(tp) as uds:
-            # Set timeout
-            if timeout is not None:
-                uds.P3_CLIENT = timeout
+                if print_results:
+                    print('Testing DIDs in range 0x{:04x}-0x{:04x}\n'.format(
+                        min_did, max_did))
+                    report_print("\n")
+                    report_print('Identified Writable DIDs:')
+                    report_print('DID    Value After Write (hex)')
 
-            if print_results:
-                print('Testing DIDs in range 0x{:04x}-0x{:04x}\n'.format(
-                    min_did, max_did))
-                report_print("\n")
-                report_print('Identified Writable DIDs:')
-                report_print('DID    Value After Write (hex)')
+                for identifier in range(min_did, max_did + 1):
 
-            for identifier in range(min_did, max_did + 1):
+                    print(f'Current DID: 0x{identifier:04x}', end='\r', file=stderr)
 
-                print(f'0x{identifier:04x}', end='\r', file=stderr)
+                    response_read = uds.read_data_by_identifier(identifier=[identifier])
 
-                response_read = uds.read_data_by_identifier(identifier=[identifier])
+                    # Only keep positive responses
+                    if response_read and Iso14229_1.is_positive_response(response_read):
 
-                # Only keep positive responses
-                if response_read and Iso14229_1.is_positive_response(response_read):
+                        data = []
 
-                    data = []
+                        for id in range(len(response_read) - 3):
+                        
+                            data.append(0xAA)
 
-                    for id in range(len(response_read) - 3):
-                    
-                        data.append(0xAA)
+                        response_write = uds.write_data_by_identifier(identifier=[identifier], data=data)
+                        if response_write and Iso14229_1.is_positive_response(response_write):
 
-                    response_write = uds.write_data_by_identifier(identifier=[identifier], data=data)
-                    if response_write and Iso14229_1.is_positive_response(response_write):
+                            response_read = uds.read_data_by_identifier(identifier=[identifier])
+                        
+                            responses.append((identifier, response_read))
 
-                        response_read = uds.read_data_by_identifier(identifier=[identifier])
-                    
-                        responses.append((identifier, response_read))
-
-                        if print_results:
-                            did = '0x{:04x}'.format(identifier), list_to_hex_str(response_read[3:])
-                            report_print(str(did))
+                            if print_results:
+                                did = '0x{:04x}'.format(identifier), list_to_hex_str(response_read[3:])
+                                report_print(str(did))
+                
+                if print_results:
+                    print("\nDone!")
+                    print("\033[K", file=stderr) # clear line
+                    print("Done!")
+                    report_print("\n")
+                return responses
             
-            if print_results:
-                print("\nDone!")
-                print("\033[K", file=stderr) # clear line
-                print("Done!")
-                report_print("\n")
-            return responses
+    except KeyboardInterrupt:
+        if print_results:
+            print(responses)
+            print("\033[K", file=stderr) # clear line
+        print("Interrupted by user.\n")
+        return responses
+    except ValueError as e:
+        print(e)
+        return
 
 def __routine_control_dump_wrapper(args):
     """Wrapper used to initiate routine dump"""
@@ -1621,7 +1643,7 @@ def routine_control_dump(arb_id_request, arb_id_response, timeout, dsc, subfunct
                 
                 for routine in range(min_routine, max_routine + 1):
                     response = uds.routine_control(subfunction, routine=[routine])
-                    print(f'0x{routine:04x}', end='\r', file=stderr)
+                    print(f'Current Routine: 0x{routine:04x}', end='\r', file=stderr)
 
                     # Parse response
                     if len(response) >= 2:
