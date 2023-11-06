@@ -114,6 +114,10 @@ DUMP_DID_MIN = 0x0000
 DUMP_DID_MAX = 0xFFFF
 DUMP_DID_TIMEOUT = 0.2
 
+DUMP_ROUTINE_MIN = 0x0000
+DUMP_ROUTINE_MAX = 0xFFFF
+DUMP_ROUTINE_TIMEOUT = 0.2
+
 MEM_START_ADDR = 0
 MEM_LEN = 1
 MEM_SIZE = 1
@@ -1462,7 +1466,6 @@ def write_dids(diagnostic, arb_id_request, arb_id_response, timeout, reporting,
     """
 
     # Sanity checks
-    
     if isinstance(timeout, float) and timeout < 0.0:
         raise ValueError("Timeout value ({0}) cannot be negative"
                          .format(timeout))
@@ -1529,6 +1532,96 @@ def write_dids(diagnostic, arb_id_request, arb_id_response, timeout, reporting,
                 report_print("\n")
             return responses
 
+def __routine_control_dump_wrapper(args):
+    """Wrapper used to initiate data identifier dump"""
+    arb_id_request = args.src
+    arb_id_response = args.dst
+    timeout = args.timeout
+    dsc = args.dsc
+    subfunction = args.subfunction
+    min_routine = args.min_routine
+    max_routine = args.max_routine
+    padding = args.padding
+    no_padding = args.no_padding
+
+    padding_set(padding, no_padding)
+
+    found_routines = routine_control_dump(arb_id_request, arb_id_response, timeout, dsc, subfunction, min_routine, max_routine)
+
+    print("\nDiscovered Routine:\n")
+    # Print results
+    for service_id in found_routines:
+        print("\n0x{0:02x}"
+              .format(service_id))
+    
+def routine_control_dump(arb_id_request, arb_id_response, timeout, dsc, subfunction,
+              min_routine=DUMP_ROUTINE_MIN, max_routine=DUMP_ROUTINE_MAX):
+    """
+    Sends read data by identifier (DID) messages to 'arb_id_request'.
+    Returns a list of positive responses received from 'arb_id_response' within
+    'timeout' seconds or an empty list if no positive responses were received.
+
+    :param arb_id_request: arbitration ID for requests
+    :param arb_id_response: arbitration ID for responses
+    :param timeout: seconds to wait for response before timeout, or None
+                    for default UDS timeout
+    :param min_did: minimum device identifier to read
+    :param max_did: maximum device identifier to read
+    :param print_results: whether progress should be printed to stdout
+    :type arb_id_request: int
+    :type arb_id_response: int
+    :type timeout: float or None
+    :type min_did: int
+    :type max_did: int
+    :type print_results: bool
+    :return: list of tuples containing DID and response bytes on success,
+             empty list if no responses
+    :rtype [(int, [int])] or []
+    """
+
+    found_routines = []
+
+    # Sanity checks
+    if isinstance(timeout, float) and timeout < 0.0:
+        raise ValueError("Timeout value ({0}) cannot be negative"
+                         .format(timeout))
+
+    if max_routine < min_routine:
+        raise ValueError("max_routine must not be smaller than min_routine -"
+                         " got min:0x{0:x}, max:0x{1:x}".format(min_routine, max_routine))
+
+    with IsoTp(arb_id_request=arb_id_request,
+               arb_id_response=arb_id_response) as tp:
+        
+        IsoTp.NP[0] = NP[0]
+        IsoTp.PADDING[0] = PADDING[0]
+
+        # Setup filter for incoming messages
+        tp.set_filter_single_arbitration_id(arb_id_response)
+        with Iso14229_1(tp) as uds:
+            # Set timeout
+            if timeout is not None:
+                uds.P3_CLIENT = timeout
+
+            print('Enumerating Routines with attributes:\n in range 0x{:04x}-0x{:04x}\n'.format(
+                min_routine, max_routine))
+            
+            print('Diagnostic Session Control: 0x{0:02x} \n'.format(dsc))
+            print('Routine Control Sub Function: 0x{0:02x} \n'.format(subfunction))
+            print('Minimum Routine: 0x{:04x} \n'.format(min_routine))
+            print('Maximum Routine: 0x{:04x} \n'.format(max_routine))
+            
+            raw_send(arb_id_request, arb_id_response, ServiceID.DIAGNOSTIC_SESSION_CONTROL, dsc)
+            
+            for routine in range(min_routine, max_routine + 1):
+                response = uds.routine_control(subfunction, routine=[routine])
+
+                # Parse response
+                if len(response) >= 2:
+                    if Iso14229_1.is_positive_response(response):
+                        found_routines.append('0x{:04x}'.format(routine), list_to_hex_str(response[3:]))
+
+            return found_routines
 
 def __parse_args(args):
     """Parser for module arguments"""
@@ -1899,6 +1992,45 @@ def __parse_args(args):
                             action="store_true",
                             help="trigger for cases where no padding is required, to enable set the option to 1. (default: 0)")
     parser_wdid.set_defaults(func=__write_dids_wrapper)
+
+    # Parser for dump_routine
+    parser_routine = subparsers.add_parser("dump_dids")
+    parser_routine.add_argument("src",
+                            type=parse_int_dec_or_hex,
+                            help="arbitration ID to transmit to")
+    parser_routine.add_argument("dst",
+                            type=parse_int_dec_or_hex,
+                            help="arbitration ID to listen to")
+    parser_routine.add_argument("-t", "--timeout",
+                            type=float, metavar="T",
+                            default=DUMP_ROUTINE_TIMEOUT,
+                            help="wait T seconds for response before "
+                                 "timeout")
+    parser_routine.add_argument("dsc", metavar="dtype",
+                            type=parse_int_dec_or_hex, default="0x01",
+                            help="Diagnostic Session Control Subsession Byte")
+    parser_routine.add_argument("subfunction", metavar="dtype",
+                            type=parse_int_dec_or_hex, default="0x01",
+                            help="Routine Control Subfunction Byte"
+                                 "0x01 startRoutine"
+                                 "0x02 stopRoutine"
+                                 "0x03 requestRoutineResults"
+                                 "0x00, 0x04–0x7F ISOSAEReserved")
+    parser_routine.add_argument("--min_routine",
+                            type=parse_int_dec_or_hex,
+                            default=DUMP_ROUTINE_MIN,
+                            help="minimum routine (DID) to execute (default: 0x0000)")
+    parser_routine.add_argument("--max_roiutine",
+                            type=parse_int_dec_or_hex,
+                            default=DUMP_ROUTINE_MAX,
+                            help="maximum routine (DID) to execute (default: 0xFFFF)")
+    parser_routine.add_argument("-p", "--padding", metavar="P",
+                            type=parse_int_dec_or_hex, default=PADDING_DEFAULT,
+                            help="padding to be used in target messages (default: 0)")
+    parser_routine.add_argument("-np", "--no_padding",
+                            action="store_true",
+                            help="trigger for cases where no padding is required, to enable set the option to 1. (default: 0)")
+    parser_routine.set_defaults(func=__routine_control_dump_wrapper)
 
     args = parser.parse_args(args)
     return args

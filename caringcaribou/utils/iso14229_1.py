@@ -334,6 +334,27 @@ class Iso14229_1(object):
             self.tp.send_request(request)
             response = self.receive_response(self.P3_CLIENT)
         return response
+    
+    def routine_control(self, subfunction, routine):
+        """
+        Sends a "routine control" request for 'routine'
+
+        :param routine: Routine Identifier
+        :return: Response data if successful,
+                 None otherwise
+        """
+        response = []
+        num_routines = len(routine)
+        if num_routines > 0:
+            request = [0] * ((num_routines * 2) + 1)
+            request[0] = ServiceID.ROUTINE_CONTROL
+            request[1] = (subfunction >> 8) & 0xFF
+            for i in range(0, num_routines):
+                request[i * 2 + 2] = (routine[i] >> 8) & 0xFF
+                request[i * 2 + 3] = routine[i] & 0xFF
+            self.tp.send_request(request)
+            response = self.receive_response(self.P3_CLIENT)
+        return response
 
     def read_memory_by_address(self, address_and_length_format,
                                memory_address, memory_size):
