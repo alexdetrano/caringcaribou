@@ -372,15 +372,16 @@ def service_discovery(arb_id_request, arb_id_response, timeout, diagnostic,
         IsoTp.NP[0] = NP[0]
         IsoTp.PADDING[0] = PADDING[0]
 
+        extended_session(arb_id_request, arb_id_response, diagnostic)
+        time.sleep(0.2)
         # Setup filter for incoming messages
         tp.set_filter_single_arbitration_id(arb_id_response)
         # Send requests
         try:
             for service_id in range(min_id, max_id + 1):
-                response_diag = extended_session(arb_id_request, arb_id_response, diagnostic)
-                if not Iso14229_1.is_positive_response(response_diag):
-                    raise ValueError("Supplied Diagnostic Session Control subservice results in Negative Response")
-                time.sleep(0.2)
+                if service_id == ServiceID.DIAGNOSTIC_SESSION_CONTROL:
+                    extended_session(arb_id_request, arb_id_response, diagnostic)
+
                 tp.send_request([service_id])
                 if print_results:
                     print("\rProbing service 0x{0:02x} ({0}/{1}): found {2}"
