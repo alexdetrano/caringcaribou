@@ -1649,11 +1649,11 @@ def routine_control_dump(arb_id_request, arb_id_response, timeout, diagnostic, s
                     print(f'Current Routine: 0x{routine:04x}', end='\r', file=stderr)
 
                     # Parse response
+                    if response is None or len(response) == 0:
+                        continue
                     if len(response) >= 2:
                         if Iso14229_1.is_positive_response(response):
                             found_routines.append('0x{:04x}'.format(routine))
-                    if response is None or len(response) == 0:
-                        continue
 
                 print("\033[K", file=stderr)
                 return found_routines
