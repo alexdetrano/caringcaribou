@@ -6,7 +6,7 @@ from caringcaribou.utils.constants import ARBITRATION_ID_MIN
 from caringcaribou.utils.iso15765_2 import IsoTp
 from caringcaribou.utils.iso14229_1 import Constants, Iso14229_1, NegativeResponseCodes, Services, ServiceID
 from caringcaribou.modules.uds_fuzz import seed_randomness_fuzzer, find_duplicates
-from sys import stdout, version_info
+from sys import stdout, version_info, stderr
 import argparse
 import datetime
 import time
@@ -1293,6 +1293,7 @@ def dump_dids(arb_id_request, arb_id_response, timeout, reporting,
                 report_print('Identified DIDs:')
                 report_print('DID    Value (hex)')
             for identifier in range(min_did, max_did + 1):
+                print(f'0x{identifier:04x}', end='\r', file=stderr)
                 response = uds.read_data_by_identifier(identifier=[identifier])
 
                 # Only keep positive responses
@@ -1309,6 +1310,8 @@ def dump_dids(arb_id_request, arb_id_response, timeout, reporting,
 
             if print_results:
                 print("\nDone!")
+                print("\033[K", file=stderr) # clear line
+                print("Done!")
                 report_print("\n")
             return responses
 
@@ -1505,6 +1508,8 @@ def write_dids(diagnostic, arb_id_request, arb_id_response, timeout, reporting,
 
             for identifier in range(min_did, max_did + 1):
 
+                print(f'0x{identifier:04x}', end='\r', file=stderr)
+
                 response_read = uds.read_data_by_identifier(identifier=[identifier])
 
                 # Only keep positive responses
@@ -1529,6 +1534,8 @@ def write_dids(diagnostic, arb_id_request, arb_id_response, timeout, reporting,
             
             if print_results:
                 print("\nDone!")
+                print("\033[K", file=stderr) # clear line
+                print("Done!")
                 report_print("\n")
             return responses
 
@@ -1548,11 +1555,10 @@ def __routine_control_dump_wrapper(args):
 
     found_routines = routine_control_dump(arb_id_request, arb_id_response, timeout, dsc, subfunction, min_routine, max_routine)
     
-    print("\nDiscovered Routine:\n")
+    print("\nDiscovered Routines:")
     # Print results
-    for service_id in found_routines:
-        print("\n0x{0:02x}"
-              .format(service_id))
+    for routine_id in found_routines:
+        print(routine_id)
     
 def routine_control_dump(arb_id_request, arb_id_response, timeout, dsc, subfunction,
               min_routine=DUMP_ROUTINE_MIN, max_routine=DUMP_ROUTINE_MAX):
@@ -1581,47 +1587,58 @@ def routine_control_dump(arb_id_request, arb_id_response, timeout, dsc, subfunct
 
     found_routines = []
 
-    # Sanity checks
-    if isinstance(timeout, float) and timeout < 0.0:
-        raise ValueError("Timeout value ({0}) cannot be negative"
-                         .format(timeout))
+    try:
+        # Sanity checks
+        if isinstance(timeout, float) and timeout < 0.0:
+            raise ValueError("Timeout value ({0}) cannot be negative"
+                            .format(timeout))
 
-    if max_routine < min_routine:
-        raise ValueError("max_routine must not be smaller than min_routine -"
-                         " got min:0x{0:x}, max:0x{1:x}".format(min_routine, max_routine))
+        if max_routine < min_routine:
+            raise ValueError("max_routine must not be smaller than min_routine -"
+                            " got min:0x{0:x}, max:0x{1:x}".format(min_routine, max_routine))
 
-    with IsoTp(arb_id_request=arb_id_request,
-               arb_id_response=arb_id_response) as tp:
-        
-        IsoTp.NP[0] = NP[0]
-        IsoTp.PADDING[0] = PADDING[0]
-
-        # Setup filter for incoming messages
-        tp.set_filter_single_arbitration_id(arb_id_response)
-        with Iso14229_1(tp) as uds:
-            # Set timeout
-            if timeout is not None:
-                uds.P3_CLIENT = timeout
-
-            print('Enumerating Routines with attributes:\n in range 0x{:04x}-0x{:04x}\n'.format(
-                min_routine, max_routine))
+        with IsoTp(arb_id_request=arb_id_request,
+                arb_id_response=arb_id_response) as tp:
             
-            print('Diagnostic Session Control: 0x{0:02x} \n'.format(dsc))
-            print('Routine Control Sub Function: 0x{0:02x} \n'.format(subfunction))
-            print('Minimum Routine: 0x{:04x} \n'.format(min_routine))
-            print('Maximum Routine: 0x{:04x} \n'.format(max_routine))
-            
-            raw_send(arb_id_request, arb_id_response, ServiceID.DIAGNOSTIC_SESSION_CONTROL, dsc)
-            
-            for routine in range(min_routine, max_routine + 1):
-                response = uds.routine_control(subfunction, routine=[routine])
+            IsoTp.NP[0] = NP[0]
+            IsoTp.PADDING[0] = PADDING[0]
 
-                # Parse response
-                if len(response) >= 2:
-                    if Iso14229_1.is_positive_response(response):
-                        found_routines.append('0x{:04x}'.format(routine))
+            # Setup filter for incoming messages
+            tp.set_filter_single_arbitration_id(arb_id_response)
+            with Iso14229_1(tp) as uds:
+                # Set timeout
+                if timeout is not None:
+                    uds.P3_CLIENT = timeout
 
-            return found_routines
+                print('Enumerating Routines with attributes:')
+                
+                print('Diagnostic Session Control: 0x{0:02x}'.format(dsc))
+                print('Routine Control Sub Function: 0x{0:02x}'.format(subfunction))
+                print('Minimum Routine: 0x{:04x}'.format(min_routine))
+                print('Maximum Routine: 0x{:04x}'.format(max_routine))
+                
+                raw_send(arb_id_request, arb_id_response, ServiceID.DIAGNOSTIC_SESSION_CONTROL, dsc)
+                
+                for routine in range(min_routine, max_routine + 1):
+                    response = uds.routine_control(subfunction, routine=[routine])
+                    print(f'0x{routine:04x}', end='\r', file=stderr)
+
+                    # Parse response
+                    if len(response) >= 2:
+                        if Iso14229_1.is_positive_response(response):
+                            found_routines.append('0x{:04x}'.format(routine))
+                    if len(response) < 2:
+                        continue
+
+                print("\033[K", file=stderr)
+                return found_routines
+            
+    except KeyboardInterrupt:
+        print("Interrupted by user.\n")
+        return found_routines
+    except ValueError as e:
+        print(e)
+        return
 
 def __parse_args(args):
     """Parser for module arguments"""
