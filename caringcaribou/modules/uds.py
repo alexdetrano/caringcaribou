@@ -1533,12 +1533,12 @@ def write_dids(diagnostic, arb_id_request, arb_id_response, timeout, reporting,
             return responses
 
 def __routine_control_dump_wrapper(args):
-    """Wrapper used to initiate data identifier dump"""
+    """Wrapper used to initiate routine dump"""
+    dsc = args.dsc
+    subfunction = args.subfunction
     arb_id_request = args.src
     arb_id_response = args.dst
     timeout = args.timeout
-    dsc = args.dsc
-    subfunction = args.subfunction
     min_routine = args.min_routine
     max_routine = args.max_routine
     padding = args.padding
@@ -1557,7 +1557,7 @@ def __routine_control_dump_wrapper(args):
 def routine_control_dump(arb_id_request, arb_id_response, timeout, dsc, subfunction,
               min_routine=DUMP_ROUTINE_MIN, max_routine=DUMP_ROUTINE_MAX):
     """
-    Sends read data by identifier (DID) messages to 'arb_id_request'.
+    Sends start routine messages to 'arb_id_request'.
     Returns a list of positive responses received from 'arb_id_response' within
     'timeout' seconds or an empty list if no positive responses were received.
 
@@ -2000,10 +2000,10 @@ def __parse_args(args):
                             help="Diagnostic Session Control Subsession Byte")
     parser_routine.add_argument("subfunction", metavar="sub",
                             type=parse_int_dec_or_hex, default="0x01",
-                            help="Routine Control Subfunction Byte"
-                                 "0x01 startRoutine"
-                                 "0x02 stopRoutine"
-                                 "0x03 requestRoutineResults"
+                            help="Routine Control Subfunction Byte:\n"
+                                 "0x01 startRoutine\n"
+                                 "0x02 stopRoutine\n"
+                                 "0x03 requestRoutineResults\n"
                                  "0x00, 0x04–0x7F ISOSAEReserved")
     parser_routine.add_argument("src",
                             type=parse_int_dec_or_hex,
