@@ -116,7 +116,7 @@ DUMP_DID_TIMEOUT = 0.2
 
 DUMP_ROUTINE_MIN = 0x0000
 DUMP_ROUTINE_MAX = 0xFFFF
-DUMP_ROUTINE_TIMEOUT = 0.2
+DUMP_ROUTINE_TIMEOUT = 0.1
 
 MEM_START_ADDR = 0
 MEM_LEN = 1
@@ -1534,10 +1534,10 @@ def write_dids(diagnostic, arb_id_request, arb_id_response, timeout, reporting,
 
 def __routine_control_dump_wrapper(args):
     """Wrapper used to initiate routine dump"""
-    dsc = args.dsc
-    subfunction = args.subfunction
     arb_id_request = args.src
     arb_id_response = args.dst
+    dsc = args.dsc
+    subfunction = args.subfunction
     timeout = args.timeout
     min_routine = args.min_routine
     max_routine = args.max_routine
@@ -1547,7 +1547,7 @@ def __routine_control_dump_wrapper(args):
     padding_set(padding, no_padding)
 
     found_routines = routine_control_dump(arb_id_request, arb_id_response, timeout, dsc, subfunction, min_routine, max_routine)
-
+    
     print("\nDiscovered Routine:\n")
     # Print results
     for service_id in found_routines:
@@ -1619,7 +1619,7 @@ def routine_control_dump(arb_id_request, arb_id_response, timeout, dsc, subfunct
                 # Parse response
                 if len(response) >= 2:
                     if Iso14229_1.is_positive_response(response):
-                        found_routines.append('0x{:04x}'.format(routine), list_to_hex_str(response[3:]))
+                        found_routines.append('0x{:04x}'.format(routine))
 
             return found_routines
 
@@ -1995,22 +1995,22 @@ def __parse_args(args):
 
     # Parser for dump_routine
     parser_routine = subparsers.add_parser("routine_control_dump")
-    parser_routine.add_argument("dsc", metavar="dtype",
-                            type=parse_int_dec_or_hex, default="0x01",
-                            help="Diagnostic Session Control Subsession Byte")
-    parser_routine.add_argument("subfunction", metavar="sub",
-                            type=parse_int_dec_or_hex, default="0x01",
-                            help="Routine Control Subfunction Byte:\n"
-                                 "0x01 startRoutine\n"
-                                 "0x02 stopRoutine\n"
-                                 "0x03 requestRoutineResults\n"
-                                 "0x00, 0x04–0x7F ISOSAEReserved")
     parser_routine.add_argument("src",
                             type=parse_int_dec_or_hex,
                             help="arbitration ID to transmit to")
     parser_routine.add_argument("dst",
                             type=parse_int_dec_or_hex,
                             help="arbitration ID to listen to")
+    parser_routine.add_argument("--dsc", metavar="dtype",
+                            type=parse_int_dec_or_hex, default="0x01",
+                            help="Diagnostic Session Control Subsession Byte")
+    parser_routine.add_argument("--subfunction", metavar="subfunction",
+                            type=parse_int_dec_or_hex, default="0x01",
+                            help="Routine Control Subfunction Byte:\n"
+                                 "0x01 startRoutine\n"
+                                 "0x02 stopRoutine\n"
+                                 "0x03 requestRoutineResults\n"
+                                 "0x00, 0x04–0x7F ISOSAEReserved")
     parser_routine.add_argument("-t", "--timeout",
                             type=float, metavar="T",
                             default=DUMP_ROUTINE_TIMEOUT,
@@ -2019,11 +2019,11 @@ def __parse_args(args):
     parser_routine.add_argument("--min_routine",
                             type=parse_int_dec_or_hex,
                             default=DUMP_ROUTINE_MIN,
-                            help="minimum routine (DID) to execute (default: 0x0000)")
-    parser_routine.add_argument("--max_roiutine",
+                            help="minimum routine to execute (default: 0x0000)")
+    parser_routine.add_argument("--max_routine",
                             type=parse_int_dec_or_hex,
                             default=DUMP_ROUTINE_MAX,
-                            help="maximum routine (DID) to execute (default: 0xFFFF)")
+                            help="maximum routine to execute (default: 0xFFFF)")
     parser_routine.add_argument("-p", "--padding", metavar="P",
                             type=parse_int_dec_or_hex, default=PADDING_DEFAULT,
                             help="padding to be used in target messages (default: 0)")

@@ -346,9 +346,9 @@ class Iso14229_1(object):
         response = []
         num_routines = len(routine)
         if num_routines > 0:
-            request = [0] * ((num_routines * 2) + 1)
+            request = [0] * ((num_routines * 2) + 2)
             request[0] = ServiceID.ROUTINE_CONTROL
-            request[1] = (subfunction >> 8) & 0xFF
+            request[1] = subfunction
             for i in range(0, num_routines):
                 request[i * 2 + 2] = (routine[i] >> 8) & 0xFF
                 request[i * 2 + 3] = routine[i] & 0xFF
