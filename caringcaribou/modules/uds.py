@@ -399,6 +399,8 @@ def service_discovery(arb_id_request, arb_id_response, timeout, diagnostic,
                     response_id = msg.data[1]
                     response_service_id = msg.data[2]
                     status = msg.data[3]
+                    if request_id == ServiceID.DIAGNOSTIC_SESSION_CONTROL and service_id == min_id:
+                        continue
                     if response_id != Constants.NR_SI:
                         request_id = Iso14229_1.get_service_request_id(response_id)
                         found_services.append(request_id)
