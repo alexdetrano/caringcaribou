@@ -1671,13 +1671,16 @@ def __parse_args(args):
         epilog="""Example usage:
   ccn.py uds discovery
   ccn.py uds discovery -blacklist 0x123 0x456
-  ccn.py uds discovery -autoblacklist 10
   ccn.py uds services 0x733 0x633
+  ccn.py uds subservices 0x02 0x27 0x733 0x633
   ccn.py uds ecu_reset 1 0x733 0x633
   ccn.py uds testerpresent 0x733
   ccn.py uds security_seed 0x3 0x1 0x733 0x633 -r 1 -d 0.5
   ccn.py uds dump_dids 0x733 0x633
-  ccn.py uds dump_dids 0x733 0x633 --min_did 0x6300 --max_did 0x6fff -t 0.1""")
+  ccn.py uds write_dids 0x733 0x633 --min_did 0x6300 --max_did 0x9fff -t 0.1
+  ccn.py uds auto -min 0x733 --min_did 0x6300 --max_did 0x6fff --max_routine 0x1000
+  ccn.py uds dump_mem 0x733 0x633 --start_addr 0x0200 --mem_length 0x10000
+  ccn.py uds routine_control_dump 0x733 0x633 --dsc 0x02 --subfunction 0x02 """)
     subparsers = parser.add_subparsers(dest="module_function")
     subparsers.required = True
 
