@@ -12,6 +12,7 @@ Discovers and utilizes various ISO 14229-1 services.
 - write_dids - Tries to write values of Dynamic Data Identifiers (DIDs)
 - auto - Fully automated diagnostics scan, by using the already existing UDS submodules
 - dump_mem - Dumps memory of ECU
+- routine_control_dump - Dump available routines for Routine Control service
 
 Details here: [uds module](documentation/uds.md)
 
