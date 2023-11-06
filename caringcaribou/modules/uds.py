@@ -962,7 +962,7 @@ def __auto_wrapper(args):
     min_did = args.min_did
     max_did = args.max_did
     min_routine = args.min_routine
-    max_routine = args.min_routine
+    max_routine = args.max_routine
     padding = args.padding
     no_padding = args.no_padding
     reporting = args.reporting
