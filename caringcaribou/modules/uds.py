@@ -1318,9 +1318,7 @@ def dump_dids(arb_id_request, arb_id_response, timeout, reporting,
                 return responses
             
     except KeyboardInterrupt:
-        if print_results:
-            print(responses)
-            print("\033[K", file=stderr) # clear line
+        print("\033[K", file=stderr) # clear line
         print("Interrupted by user.\n")
         return responses
     except ValueError as e:
@@ -1552,9 +1550,7 @@ def write_dids(diagnostic, arb_id_request, arb_id_response, timeout, reporting,
                 return responses
             
     except KeyboardInterrupt:
-        if print_results:
-            print(responses)
-            print("\033[K", file=stderr) # clear line
+        print("\033[K", file=stderr) # clear line
         print("Interrupted by user.\n")
         return responses
     except ValueError as e:
