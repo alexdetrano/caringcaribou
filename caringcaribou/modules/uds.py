@@ -1994,7 +1994,17 @@ def __parse_args(args):
     parser_wdid.set_defaults(func=__write_dids_wrapper)
 
     # Parser for dump_routine
-    parser_routine = subparsers.add_parser("routine_control_enum")
+    parser_routine = subparsers.add_parser("routine_control_dump")
+    parser_routine.add_argument("dsc", metavar="dtype",
+                            type=parse_int_dec_or_hex, default="0x01",
+                            help="Diagnostic Session Control Subsession Byte")
+    parser_routine.add_argument("subfunction", metavar="sub",
+                            type=parse_int_dec_or_hex, default="0x01",
+                            help="Routine Control Subfunction Byte"
+                                 "0x01 startRoutine"
+                                 "0x02 stopRoutine"
+                                 "0x03 requestRoutineResults"
+                                 "0x00, 0x04–0x7F ISOSAEReserved")
     parser_routine.add_argument("src",
                             type=parse_int_dec_or_hex,
                             help="arbitration ID to transmit to")
@@ -2006,16 +2016,6 @@ def __parse_args(args):
                             default=DUMP_ROUTINE_TIMEOUT,
                             help="wait T seconds for response before "
                                  "timeout")
-    parser_routine.add_argument("dsc", metavar="dtype",
-                            type=parse_int_dec_or_hex, default="0x01",
-                            help="Diagnostic Session Control Subsession Byte")
-    parser_routine.add_argument("subfunction", metavar="dtype",
-                            type=parse_int_dec_or_hex, default="0x01",
-                            help="Routine Control Subfunction Byte"
-                                 "0x01 startRoutine"
-                                 "0x02 stopRoutine"
-                                 "0x03 requestRoutineResults"
-                                 "0x00, 0x04–0x7F ISOSAEReserved")
     parser_routine.add_argument("--min_routine",
                             type=parse_int_dec_or_hex,
                             default=DUMP_ROUTINE_MIN,
