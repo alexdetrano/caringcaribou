@@ -900,6 +900,7 @@ def send_key(arb_id_request, arb_id_response, level, key, timeout):
 
 def __dump_dids_wrapper(args):
     """Wrapper used to initiate data identifier dump"""
+    diagnostic = args.dsc
     arb_id_request = args.src
     arb_id_response = args.dst
     timeout = args.timeout
@@ -920,7 +921,7 @@ def __dump_dids_wrapper(args):
 
     padding_set(padding, no_padding)
 
-    dump_dids(arb_id_request, arb_id_response, timeout, reporting, min_did, max_did,
+    dump_dids(arb_id_request, arb_id_response, timeout, reporting, diagnostic, min_did, max_did,
               print_results)
 
 def report_print(text):
@@ -1236,7 +1237,7 @@ def __auto_wrapper(args):
         report_print("\nDiscovery failed: {0}".format(e))
 
 
-def dump_dids(arb_id_request, arb_id_response, timeout, reporting, 
+def dump_dids(arb_id_request, arb_id_response, timeout, reporting, diagnostic, 
               min_did=DUMP_DID_MIN, max_did=DUMP_DID_MAX, print_results=True):
     """
     Sends read data by identifier (DID) messages to 'arb_id_request'.
@@ -1275,6 +1276,10 @@ def dump_dids(arb_id_request, arb_id_response, timeout, reporting,
             global REPORT
             REPORT = 1
 
+        response_diag = extended_session(arb_id_request, arb_id_response, diagnostic)
+        if not Iso14229_1.is_positive_response(response_diag):
+            raise ValueError("Supplied Diagnostic Session Control subservice results in Negative Response")
+        
         responses = []
         with IsoTp(arb_id_request=arb_id_request,
                 arb_id_response=arb_id_response) as tp:
@@ -1561,7 +1566,7 @@ def __routine_control_dump_wrapper(args):
     """Wrapper used to initiate routine dump"""
     arb_id_request = args.src
     arb_id_response = args.dst
-    dsc = args.dsc
+    diagnostic = args.dsc
     subfunction = args.subfunction
     timeout = args.timeout
     min_routine = args.min_routine
@@ -1571,14 +1576,14 @@ def __routine_control_dump_wrapper(args):
 
     padding_set(padding, no_padding)
 
-    found_routines = routine_control_dump(arb_id_request, arb_id_response, timeout, dsc, subfunction, min_routine, max_routine)
+    found_routines = routine_control_dump(arb_id_request, arb_id_response, timeout, diagnostic, subfunction, min_routine, max_routine)
     
     print("\nDiscovered Routines:")
     # Print results
     for routine_id in found_routines:
         print(routine_id)
     
-def routine_control_dump(arb_id_request, arb_id_response, timeout, dsc, subfunction,
+def routine_control_dump(arb_id_request, arb_id_response, timeout, diagnostic, subfunction,
               min_routine=DUMP_ROUTINE_MIN, max_routine=DUMP_ROUTINE_MAX):
     """
     Sends start routine messages to 'arb_id_request'.
@@ -1630,12 +1635,14 @@ def routine_control_dump(arb_id_request, arb_id_response, timeout, dsc, subfunct
 
                 print('Enumerating Routines with attributes:')
                 
-                print('Diagnostic Session Control: 0x{0:02x}'.format(dsc))
+                print('Diagnostic Session Control: 0x{0:02x}'.format(diagnostic))
                 print('Routine Control Sub Function: 0x{0:02x}'.format(subfunction))
                 print('Minimum Routine: 0x{:04x}'.format(min_routine))
                 print('Maximum Routine: 0x{:04x}'.format(max_routine))
                 
-                raw_send(arb_id_request, arb_id_response, ServiceID.DIAGNOSTIC_SESSION_CONTROL, dsc)
+                response_diag = extended_session(arb_id_request, arb_id_response, diagnostic)
+                if not Iso14229_1.is_positive_response(response_diag):
+                    raise ValueError("Supplied Diagnostic Session Control subservice results in Negative Response")
                 
                 for routine in range(min_routine, max_routine + 1):
                     response = uds.routine_control(subfunction, routine=[routine])
@@ -1645,7 +1652,7 @@ def routine_control_dump(arb_id_request, arb_id_response, timeout, dsc, subfunct
                     if len(response) >= 2:
                         if Iso14229_1.is_positive_response(response):
                             found_routines.append('0x{:04x}'.format(routine))
-                    if len(response) < 2:
+                    if response is None or len(response) == 0:
                         continue
 
                 print("\033[K", file=stderr)
@@ -1875,6 +1882,9 @@ def __parse_args(args):
                             default=DUMP_DID_TIMEOUT,
                             help="wait T seconds for response before "
                                  "timeout")
+    parser_did.add_argument("--dsc", metavar="dtype",
+                            type=parse_int_dec_or_hex, default="0x01",
+                            help="Diagnostic Session Control Subsession Byte")
     parser_did.add_argument("--min_did",
                             type=parse_int_dec_or_hex,
                             default=DUMP_DID_MIN,
@@ -1995,15 +2005,15 @@ def __parse_args(args):
 
     # Parser for write_did
     parser_wdid = subparsers.add_parser("write_dids")
-    parser_wdid.add_argument("dsc", metavar="dtype",
-                            type=parse_int_dec_or_hex, default="0x03",
-                            help="Diagnostic Session Control Subsession Byte")
     parser_wdid.add_argument("src",
                             type=parse_int_dec_or_hex,
                             help="arbitration ID to transmit to")
     parser_wdid.add_argument("dst",
                             type=parse_int_dec_or_hex,
                             help="arbitration ID to listen to")
+    parser_wdid.add_argument("--dsc", metavar="dtype",
+                            type=parse_int_dec_or_hex, default="0x03",
+                            help="Diagnostic Session Control Subsession Byte")
     parser_wdid.add_argument("-t", "--timeout",
                             type=float, metavar="T",
                             default=DUMP_DID_TIMEOUT,
