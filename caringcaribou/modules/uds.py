@@ -344,7 +344,7 @@ def __uds_discovery_wrapper(args):
         print("Discovery failed: {0}".format(e))
 
 
-def service_discovery(arb_id_request, arb_id_response, timeout,
+def service_discovery(arb_id_request, arb_id_response, timeout, diagnostic,
                       min_id=BYTE_MIN, max_id=BYTE_MAX, print_results=True):
     """Scans for supported UDS services on the specified arbitration ID.
        Returns a list of found service IDs.
@@ -377,6 +377,9 @@ def service_discovery(arb_id_request, arb_id_response, timeout,
         # Send requests
         try:
             for service_id in range(min_id, max_id + 1):
+                response_diag = extended_session(arb_id_request, arb_id_response, diagnostic)
+                if not Iso14229_1.is_positive_response(response_diag):
+                    raise ValueError("Supplied Diagnostic Session Control subservice results in Negative Response")
                 tp.send_request([service_id])
                 if print_results:
                     print("\rProbing service 0x{0:02x} ({0}/{1}): found {2}"
@@ -415,12 +418,13 @@ def __service_discovery_wrapper(args):
     timeout = args.timeout
     padding = args.padding
     no_padding = args.no_padding
+    diagnostic = args.dsc
 
     padding_set(padding, no_padding)
 
     # Probe services
     found_services = service_discovery(arb_id_request,
-                                       arb_id_response, timeout)
+                                       arb_id_response, timeout, diagnostic)
     # Print results
     for service_id in found_services:
         service_name = UDS_SERVICE_NAMES.get(service_id, "Unknown service")
@@ -1728,6 +1732,9 @@ def __parse_args(args):
     parser_info.add_argument("dst",
                              type=parse_int_dec_or_hex,
                              help="arbitration ID to listen to")
+    parser_info.add_argument("--dsc", metavar="dtype",
+                            type=parse_int_dec_or_hex, default="0x01",
+                            help="Diagnostic Session Control Subsession Byte")
     parser_info.add_argument("-t", "--timeout", metavar="T",
                              type=float, default=TIMEOUT_SERVICES,
                              help="wait T seconds for response before "
