@@ -961,6 +961,8 @@ def __auto_wrapper(args):
     timeout = args.timeout
     min_did = args.min_did
     max_did = args.max_did
+    min_routine = args.min_routine
+    max_routine = args.min_routine
     padding = args.padding
     no_padding = args.no_padding
     reporting = args.reporting
@@ -1083,6 +1085,15 @@ def __auto_wrapper(args):
                             for subservice_id in found_subservices:
                                 nrc_description = NRC_NAMES.get(subservice_status[found_subservices.index(subservice_id)])
                                 report_print("\n0x{0:02x} : {1}".format(subservice_id, nrc_description))
+                    except KeyboardInterrupt:
+                        print("Current test interrupted by user.")
+
+                if ServiceID.ROUTINE_CONTROL in found_services:
+                    try:
+                        for subservice_id in found_subservices:
+                            subfunction = parse_int_dec_or_hex('0x03')
+                            extended_session(client_id, server_id, 1)
+                            routine_control_dump(client_id, server_id, timeout, subservice_id, subfunction, min_routine, max_routine)
                     except KeyboardInterrupt:
                         print("Current test interrupted by user.")
 
@@ -1576,36 +1587,13 @@ def __routine_control_dump_wrapper(args):
 
     padding_set(padding, no_padding)
 
-    found_routines = routine_control_dump(arb_id_request, arb_id_response, timeout, diagnostic, subfunction, min_routine, max_routine)
+    routine_control_dump(arb_id_request, arb_id_response, timeout, diagnostic, subfunction, min_routine, max_routine)
     
-    print("\nDiscovered Routines:")
-    # Print results
-    for routine_id in found_routines:
-        print(routine_id)
     
 def routine_control_dump(arb_id_request, arb_id_response, timeout, diagnostic, subfunction,
               min_routine=DUMP_ROUTINE_MIN, max_routine=DUMP_ROUTINE_MAX):
     """
     Sends start routine messages to 'arb_id_request'.
-    Returns a list of positive responses received from 'arb_id_response' within
-    'timeout' seconds or an empty list if no positive responses were received.
-
-    :param arb_id_request: arbitration ID for requests
-    :param arb_id_response: arbitration ID for responses
-    :param timeout: seconds to wait for response before timeout, or None
-                    for default UDS timeout
-    :param min_did: minimum device identifier to read
-    :param max_did: maximum device identifier to read
-    :param print_results: whether progress should be printed to stdout
-    :type arb_id_request: int
-    :type arb_id_response: int
-    :type timeout: float or None
-    :type min_did: int
-    :type max_did: int
-    :type print_results: bool
-    :return: list of tuples containing DID and response bytes on success,
-             empty list if no responses
-    :rtype [(int, [int])] or []
     """
 
     found_routines = []
@@ -1656,11 +1644,19 @@ def routine_control_dump(arb_id_request, arb_id_response, timeout, diagnostic, s
                             found_routines.append('0x{:04x}'.format(routine))
 
                 print("\033[K", file=stderr)
-                return found_routines
+                
+                print("\nDiscovered Routines:")
+                # Print results
+                for routine_id in found_routines:
+                    print(routine_id)
             
     except KeyboardInterrupt:
         print("Interrupted by user.\n")
-        return found_routines
+        # Print results
+        for routine_id in found_routines:
+            print(routine_id)
+        return
+    
     except ValueError as e:
         print(e)
         return
@@ -1945,6 +1941,14 @@ def __parse_args(args):
                              type=parse_int_dec_or_hex,
                              default=DUMP_DID_MAX,
                              help="maximum device identifier (DID) to read (default: 0xFFFF)")
+    parser_auto.add_argument("--min_routine",
+                            type=parse_int_dec_or_hex,
+                            default=DUMP_ROUTINE_MIN,
+                            help="minimum routine to execute (default: 0x0000)")
+    parser_auto.add_argument("--max_routine",
+                            type=parse_int_dec_or_hex,
+                            default=DUMP_ROUTINE_MAX,
+                            help="maximum routine to execute (default: 0xFFFF)")
     parser_auto.add_argument("-p", "--padding", metavar="P",
                             type=parse_int_dec_or_hex, default=PADDING_DEFAULT,
                             help="padding to be used in target messages (default: 0)")
