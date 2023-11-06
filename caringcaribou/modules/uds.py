@@ -380,6 +380,7 @@ def service_discovery(arb_id_request, arb_id_response, timeout, diagnostic,
                 response_diag = extended_session(arb_id_request, arb_id_response, diagnostic)
                 if not Iso14229_1.is_positive_response(response_diag):
                     raise ValueError("Supplied Diagnostic Session Control subservice results in Negative Response")
+                time.sleep(0.2)
                 tp.send_request([service_id])
                 if print_results:
                     print("\rProbing service 0x{0:02x} ({0}/{1}): found {2}"
