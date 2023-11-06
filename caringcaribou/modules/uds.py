@@ -1994,7 +1994,7 @@ def __parse_args(args):
     parser_wdid.set_defaults(func=__write_dids_wrapper)
 
     # Parser for dump_routine
-    parser_routine = subparsers.add_parser("dump_dids")
+    parser_routine = subparsers.add_parser("routine_control_enum")
     parser_routine.add_argument("src",
                             type=parse_int_dec_or_hex,
                             help="arbitration ID to transmit to")
