@@ -1439,7 +1439,7 @@ def dump_memory(arb_id_request, arb_id_response, timeout,
                 if response and Iso14229_1.is_positive_response(response):
                     responses.append((identifier, response))
                     if print_results:
-                        print('0x{:x}'.format(identifier), list_to_hex_str(response))
+                        print('0x{:x}'.format(identifier), list_to_hex_str(response[1:]))
             if print_results:
                 print("\nDone!")
             return responses
