@@ -1439,7 +1439,7 @@ def dump_memory(arb_id_request, arb_id_response, timeout,
                     responses.append((identifier, response))
                     # response [0] = positive response SID (0x63)
                     # response [1:] = data returned from memory read
-                    if print_results and len(response) > 2:
+                    if print_results and len(response) >= 2:
                         print('0x{:x}'.format(identifier), list_to_hex_str(response[1:]))
             if print_results:
                 print("\nDone!")
