@@ -1356,12 +1356,18 @@ def __dump_mem_wrapper(args):
     print_results = True
     padding = args.padding
     no_padding = args.no_padding
+    outfile = args.outfile
     
 
     padding_set(padding, no_padding)
 
-    dump_memory(arb_id_request, arb_id_response, timeout, start_addr, mem_length, mem_size, address_byte_size,
+    results = dump_memory(arb_id_request, arb_id_response, timeout, start_addr, mem_length, mem_size, address_byte_size,
                 memory_length_byte_size, session_type, print_results)
+    if outfile:
+        with open(outfile, 'w') as f:
+            for addr,data in results:
+                f.write(f'{addr:08x} {bytes(data[1:]).hex()}\n')
+
     
 def dump_memory(arb_id_request, arb_id_response, timeout,
                 start_addr=MEM_START_ADDR, mem_length=MEM_LEN, mem_size=MEM_SIZE, address_byte_size=ADDR_BYTE_SIZE,
@@ -2007,6 +2013,8 @@ def __parse_args(args):
     parser_mem.add_argument("-np", "--no_padding",
                             action="store_true",
                             help="trigger for cases where no padding is required, to enable set the option to 1. (default: 0)")
+    parser_mem.add_argument("--outfile",
+                            help="filename to write output to")
     parser_mem.set_defaults(func=__dump_mem_wrapper)
 
 
